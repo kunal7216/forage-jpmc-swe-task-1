@@ -18,42 +18,70 @@
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
 
-import json
-import random
-import urllib.request
+import unittest
+from client3 import getDataPoint, getRatio
 
-# Server API URLs
-QUERY = "http://localhost:8080/query?id={}"
-
-# 500 server request
-N = 500
-
-
-def getDataPoint(quote):
-    """ Produce all the needed values to generate a datapoint """
-    """ ------------- Update this function ------------- """
-    stock = quote['stock']
-    bid_price = float(quote['top_bid']['price'])
-    ask_price = float(quote['top_ask']['price'])
-    price = bid_price
-    return stock, bid_price, ask_price, price
-
-
-def getRatio(price_a, price_b):
-    """ Get ratio of price_a and price_b """
-    """ ------------- Update this function ------------- """
-    return 1
-
-
-# Main
-if __name__ == "__main__":
-    # Query the price once every N seconds.
-    for _ in iter(range(N)):
-        quotes = json.loads(urllib.request.urlopen(QUERY.format(random.random())).read())
-
-        """ ----------- Update to get the ratio --------------- """
+class TestClient(unittest.TestCase):
+    def test_getDataPoint(self):
+        quotes = [
+            {'stock': 'AAPL', 'top_bid': {'price': 100.0}, 'top_ask': {'price': 110.0}},
+            {'stock': 'GOOG', 'top_bid': {'price': 500.0}, 'top_ask': {'price': 520.0}},
+            {'stock': 'MSFT', 'top_bid': {'price': 200.0}, 'top_ask': {'price': 210.0}},
+        ]
         for quote in quotes:
             stock, bid_price, ask_price, price = getDataPoint(quote)
-            print("Quoted %s at (bid:%s, ask:%s, price:%s)" % (stock, bid_price, ask_price, price))
+            self.assertEqual(stock, quote['stock'])
+            self.assertAlmostEqual(bid_price, float(quote['top_bid']['price']))
+            self.assertAlmostEqual(ask_price, float(quote['top_ask']['price']))
+            self.assertAlmostEqual(price, (bid_price + ask_price) / 2)
 
-        print("Ratio %s" % getRatio(price, price))
+    def test_getRatio(self):
+        self.assertAlmostEqual(getRatio(10, 20), 0.5)
+        self.assertAlmostEqual(getRatio(20, 10), 2)
+        self.assertAlmostEqual(getRatio(10, 0), float('inf'))
+        self.assertAlmostEqual(getRatio(0, 10), 0)
+
+    def test_getDataPoint_missing_top_bid(self):
+        quote = {'stock': 'AAPL', 'top_ask': {'price': 110.0}}
+        with self.assertRaises(KeyError):
+            getDataPoint(quote)
+
+    def test_getDataPoint_missing_top_ask(self):
+        quote = {'stock': 'AAPL', 'top_bid': {'price': 100.0}}
+        with self.assertRaises(KeyError):
+            getDataPoint(quote)
+
+    def test_getRatio_negative_prices(self):
+        self.assertAlmostEqual(getRatio(-10, 20), -0.5)
+        self.assertAlmostEqual(getRatio(20, -10), -2)
+
+    def test_getRatio_large_prices(self):
+        self.assertAlmostEqual(getRatio(1000000, 2000000), 0.5)
+        self.assertAlmostEqual(getRatio(2000000, 1000000), 2)
+
+    def test_getDataPoint_calculatePrice(self):
+        quotes = [
+            {'top_ask': {'price': 121.2, 'size': 36}, 'timestamp': '2019-02-11 22:06:30.572453', 'top_bid': {'price': 120.48, 'size': 109), 'id': '0.109974697771', 'stock': 'ABC'},
+            {'top_ask': {'price': 121.68, 'size': 4}, 'timestamp': '2019-02-11 22:06:30.572453', 'top_bid': {'price': 117.87, 'size': 81}, 'id': '6.109974697771', 'stock': 'DEF'}
+        ]
+        for quote in quotes:
+            stock, bid_price, ask_price, price = getDataPoint(quote)
+            self.assertEqual(stock, quote['stock'])
+            self.assertAlmostEqual(bid_price, float(quote['top_bid']['price']))
+            self.assertAlmostEqual(ask_price, float(quote['top_ask']['price']))
+            self.assertAlmostEqual(price, (bid_price + ask_price) / 2)
+
+    def test_getDataPoint_calculatePriceBidGreater ThanAsk(self):
+        quotes = [
+            {'top_ask': {'price': 119.2, 'size': 36}, 'timestamp': '2019-02-11 22:06:30.572453', 'top_bid': {'price': 120.48, 'size': 109), 'id': '0.109974697771', 'stock': 'ABC'},
+            {'top_ask': {'price': 121.68, 'size': 4}, 'timestamp': '2019-02-11 22:06:30.572453', 'top_bid': {'price': 117.87, 'size': 81}, 'id': '0.109974697771', 'stock': 'DEF'}
+        ]
+        for quote in quotes:
+            stock, bid_price, ask_price, price = getDataPoint(quote)
+            self.assertEqual(stock, quote['stock'])
+            self.assertAlmostEqual(bid_price, float(quote['top_bid']['price']))
+            self.assertAlmostEqual(ask_price, float(quote['top_ask']['price']))
+            self.assertAlmostEqual(price, (bid_price + ask_price) / 2)
+
+if __name__ == '__main__':
+    unittest.main()
